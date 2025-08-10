@@ -1,7 +1,7 @@
 module.exports = {
-  telegramToken: '', // Leave empty to set via web interface
-  UrlCreate: 'your-panel-domain.com',
-  FolderPanel: 'panel-folder',
-  UrlWebp: 'your-webp-domain.com',
-  FolderWebp: 'webp-folder'
+  telegramToken: process.env.TELEGRAM_TOKEN || '', // Can use env var
+  UrlCreate: process.env.URL_CREATE || 'your-panel-domain.com',
+  FolderPanel: process.env.FOLDER_PANEL || 'panel-folder',
+  UrlWebp: process.env.URL_WEBP || 'your-webp-domain.com',
+  FolderWebp: process.env.FOLDER_WEBP || 'webp-folder'
 };
