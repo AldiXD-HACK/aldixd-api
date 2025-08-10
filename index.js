@@ -43,6 +43,7 @@ function connectBot(token) {
 
 // Setup bot commands
 function setupBotCommands() {
+  // Start command
   bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const menu = `
@@ -84,11 +85,13 @@ SIMPEL MENU
     bot.sendMessage(chatId, menu, { parse_mode: 'Markdown' });
   });
 
+  // Check ID command
   bot.onText(/\/cek_id/, (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId, `ID Telegram Anda: ${chatId}`);
   });
 
+  // Create Panel command
   bot.onText(/\/create_panel (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const isCreator = owner.owners.includes(chatId.toString());
@@ -136,6 +139,7 @@ SIMPEL MENU
     }
   });
 
+  // Create Webp command
   bot.onText(/\/cwebp (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const args = match[1].split(' ');
@@ -231,12 +235,21 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  if (config.telegramToken) {
-    connectBot(config.telegramToken);
-  }
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
 
+// Start server (only when not in Vercel environment)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    if (config.telegramToken) {
+      connectBot(config.telegramToken);
+    }
+  });
+}
+
+// Export the app for Vercel
 module.exports = app;
