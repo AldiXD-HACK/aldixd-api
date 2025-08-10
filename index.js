@@ -1,15 +1,13 @@
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
-const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 
-// Load config
+// Load config and helpers
 const config = require('./config');
 const owner = require('./owner.json');
+require('./helpers'); // Load global helpers
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Initialize Telegram bot
 let bot;
@@ -30,9 +28,7 @@ function connectBot(token) {
     bot = new TelegramBot(token, { polling: true });
     botStatus = 'connected';
     
-    // Set up bot commands
     setupBotCommands();
-    
     return true;
   } catch (error) {
     console.error('Error connecting bot:', error);
@@ -41,7 +37,7 @@ function connectBot(token) {
   }
 }
 
-// Setup bot commands
+// Setup bot commands with helper functions
 function setupBotCommands() {
   // Start command
   bot.onText(/\/start/, (msg) => {
@@ -79,16 +75,18 @@ SIMPEL MENU
        *👨‍💻 CREATED BY*  
 ╚════════════════════╝
 ▫️ *AldiXDCodeX🇲🇨*
-▫️ © Since 2023
+▫️ © Since 2023 (Runtime: ${global.runtime()})
     `;
     
     bot.sendMessage(chatId, menu, { parse_mode: 'Markdown' });
+    global.totalreq++;
   });
 
   // Check ID command
   bot.onText(/\/cek_id/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, `ID Telegram Anda: ${chatId}`);
+    bot.sendMessage(chatId, `ID Telegram Anda: ${chatId}\nTanggal: ${tanggal(Date.now())}`);
+    global.totalreq++;
   });
 
   // Create Panel command
@@ -110,33 +108,27 @@ SIMPEL MENU
 
     bot.sendMessage(chatId, "Sedang membuat... Mohon tunggu sebentar dan jangan spam!");
 
-    const inputt = new URLSearchParams();
-    inputt.append("nomor", nomorZIP);
-    inputt.append("buatweb", true);
-
-    const serverUrl = `https://${config.UrlCreate}/proses.php`;
-
     try {
-      const response = await axios.post(serverUrl, inputt);
-      const json = response.data;
-
-      if (json.status === "success") {
-        const folderName = json.folder;
+      const response = await global.fetchJson(`https://${config.UrlCreate}/proses.php?nomor=${nomorZIP}&buatweb=true`);
+      
+      if (response.status === "success") {
+        const folderName = response.folder;
         const detailP1 = `*DETAIL PANEL ANDA*\n` +
           `WEB : https://${config.UrlCreate}/${config.FolderPanel}/${folderName}/aldixd\n` +
           `API WEB : https://${config.UrlCreate}/${config.FolderPanel}/${folderName}/apiii.php\n` +
-          `*NOTE : API UDH KE KONEK OTOMATIS JADI TINGGAL PAKAI SAJA*`;
+          `*NOTE : API UDH KE KONEK OTOMATIS JADI TINGGAL PAKAI SAJA*\n` +
+          `Dibuat pada: ${tanggal(Date.now())}`;
 
-        // Kirim detail ke target
         bot.sendMessage(targetId, detailP1, { parse_mode: 'Markdown' });
         bot.sendMessage(chatId, `Panel telah berhasil dikirim ke ID Telegram ${targetId}.`);
       } else {
-        bot.sendMessage(chatId, `Terjadi kesalahan: ${json.message}`);
+        bot.sendMessage(chatId, `Terjadi kesalahan: ${response.message}`);
       }
     } catch (error) {
       console.error("Error in request:", error);
       bot.sendMessage(chatId, "Terjadi kesalahan dalam proses pembuatan. Silakan coba lagi.");
     }
+    global.totalreq++;
   });
 
   // Create Webp command
@@ -153,31 +145,15 @@ SIMPEL MENU
 
     bot.sendMessage(chatId, "Sedang membuat... Mohon tunggu sebentar dan jangan spam!");
 
-    const inputt = new URLSearchParams();
-    inputt.append("nomor", nomorZIP);
-    inputt.append("trigger_alpha_92", true);
-    inputt.append("buatweb", true);
-
-    const serverUrl = `https://${config.UrlWebp}/proses.php`;
-
     try {
-      const response = await axios.post(serverUrl, inputt, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+      const response = await global.fetchJson(`https://${config.UrlWebp}/proses.php?nomor=${nomorZIP}&trigger_alpha_92=true&buatweb=true`);
 
-      const json = response.data;
-
-      if (json.status === "success") {
-        const folderName = json.folder;
+      if (response.status === "success") {
+        const folderName = response.folder;
         const webUrl = `https://${config.UrlWebp}/${config.FolderWebp}/${folderName}`;
         const settingUrl = `${webUrl}/setting.php`;
 
-        async function getShortUrl(longUrl) {
-          const tinyResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-          return tinyResponse.data;
-        }
-
-        const shortWebUrl = await getShortUrl(webUrl);
+        const shortWebUrl = await global.fetchJson(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(webUrl)}`);
 
         const detailP1 = 
 `╔═══════════════════════════════
@@ -194,17 +170,19 @@ SIMPEL MENU
 ║  simpan baek baek bos
 ║  saran ku pakek yg short
 ║  
+║  Dibuat pada: ${tanggal(Date.now())}
 ╚═══════════════════════════════`;
 
         bot.sendMessage(targetId, detailP1, { parse_mode: 'Markdown' });
         bot.sendMessage(chatId, `*Success create webp, detail telah dikirim ke ID Telegram* ${targetId}.`, { parse_mode: 'Markdown' });
       } else {
-        bot.sendMessage(chatId, `Terjadi kesalahan: ${json.message}`);
+        bot.sendMessage(chatId, `Terjadi kesalahan: ${response.message}`);
       }
     } catch (error) {
-      console.error("Error in request:", error.message);
+      console.error("Error in request:", error);
       bot.sendMessage(chatId, "Terjadi kesalahan dalam proses pembuatan. Silakan coba lagi.");
     }
+    global.totalreq++;
   });
 }
 
@@ -213,21 +191,48 @@ app.post('/connect', (req, res) => {
   const { apiKey } = req.body;
   
   if (!apiKey) {
-    return res.status(400).json({ success: false, message: 'API key is required' });
+    return res.status(400).json({ 
+      status: false,
+      message: 'API key is required',
+      creator: config.creator,
+      runtime: global.runtime(),
+      totalreq: global.totalreq
+    });
   }
   
   const success = connectBot(apiKey);
   
   if (success) {
-    res.json({ success: true, message: 'Bot connected successfully', status: botStatus });
+    res.json({ 
+      status: true, 
+      message: 'Bot connected successfully', 
+      botStatus,
+      creator: config.creator,
+      runtime: global.runtime(),
+      totalreq: global.totalreq
+    });
   } else {
-    res.status(500).json({ success: false, message: 'Failed to connect bot', status: botStatus });
+    res.status(500).json({ 
+      status: false, 
+      message: 'Failed to connect bot', 
+      botStatus,
+      creator: config.creator,
+      runtime: global.runtime(),
+      totalreq: global.totalreq
+    });
   }
 });
 
 // API endpoint to check bot status
 app.get('/status', (req, res) => {
-  res.json({ status: botStatus });
+  res.json({ 
+    status: true,
+    botStatus,
+    creator: config.creator,
+    runtime: global.runtime(),
+    totalreq: global.totalreq,
+    date: tanggal(Date.now())
+  });
 });
 
 // Serve HTML
@@ -235,14 +240,25 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send('Something broke!');
+  res.status(500).json({
+    status: false,
+    message: 'Something broke!',
+    error: err.message,
+    creator: config.creator,
+    runtime: global.runtime(),
+    totalreq: global.totalreq
+  });
 });
 
-// Start server (only when not in Vercel environment)
+// Export for Vercel
+module.exports = app;
+
+// Start server if not in Vercel environment
 if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     if (config.telegramToken) {
@@ -250,6 +266,3 @@ if (process.env.VERCEL !== '1') {
     }
   });
 }
-
-// Export the app for Vercel
-module.exports = app;
